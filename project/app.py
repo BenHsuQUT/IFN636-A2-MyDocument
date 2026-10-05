@@ -1,13 +1,11 @@
-import os
-import shutil
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from flask import Flask, render_template, request, redirect, url_for,session, flash, send_from_directory, abort
 
 from project.config import Config
-from project.models import db, User, Document
+from project.models import db
 from project.utils import login_required, admin_required, register_template_filters
-from project.facades import DocumentManagerFacade, ValidationError, AccessDeniedError
+from project.facades import MyDocumentFacade, ValidationError, AccessDeniedError
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -15,11 +13,10 @@ app.config.from_object(Config)
 db.init_app(app)
 register_template_filters(app)
 
-facade = DocumentManagerFacade(app.config)
+facade = MyDocumentFacade(app.config)
 # -------------------------------------------------------------------- getter --
 def get_current_user():
-    uid = session.get("user_id")
-    return User.query.get(uid) if uid else None
+    return facade.get_user(session.get("user_id"))
 
 
 def flash_errors(error):
@@ -42,25 +39,11 @@ def register():
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
 
-        errors = []
-        if not username or not email or not password:
-            errors.append("Please fill in all fields.")
-        if len(password) < 6:
-            errors.append("Password must be at least 6 characters.")
-        if User.query.filter_by(username=username).first():
-            errors.append("This username is already taken.")
-        if User.query.filter_by(email=email).first():
-            errors.append("This email is already registered.")
-
-        if errors:
-            for e in errors:
-                flash(e, "error")
+        try:
+            facade.register_user(username, email, password)
+        except ValidationError as e:
+            flash_errors(e)
             return render_template("register.html", username=username, email=email)
-
-        user = User(username=username, email=email, role="user")
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
 
         flash("Account created successfully, please log in.", "success")
         return redirect(url_for("login"))
@@ -75,18 +58,15 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
-        user = User.query.filter_by(username=username).first()
 
-        if not user or not user.check_password(password):
-            flash("Incorrect username or password.", "error")
-        elif not user.is_active_account:
-            flash("This account has been deactivated. Please contact an administrator.", "error")
+        try:
+            user = facade.authenticate(username, password)
+        except ValidationError as e:
+            flash_errors(e)
         else:
             session["user_id"] = user.id
             session["username"] = user.username
             session["role"] = user.role
-            user.last_login_at = datetime.utcnow()
-            db.session.commit()
 
             flash(f"Welcome back, {user.username}!", "success")
             next_url = request.args.get("next")
@@ -228,67 +208,29 @@ def delete_document(doc_id):
 @app.route("/admin")
 @admin_required
 def admin_dashboard():
-    all_users = User.query.order_by(User.created_at.asc()).all()
-    total_users = len(all_users)
-    active_users = sum(1 for u in all_users if u.is_active_account)
-    inactive_users = total_users - active_users
-    new_this_week = sum(
-        1 for u in all_users
-        if u.created_at and u.created_at >= datetime.utcnow() - timedelta(days=7)
-    )
-
-    total_documents = Document.query.filter_by(is_latest=True).count()
-    total_storage = sum(u.total_storage_bytes() for u in all_users)
-    quota = app.config["ADMIN_TOTAL_QUOTA_BYTES"]
-    percent_used = round((total_storage / quota) * 100, 1) if quota else 0
-
-    return render_template(
-        "admin_dashboard.html",
-        users=all_users,
-        total_users=total_users,
-        active_users=active_users,
-        inactive_users=inactive_users,
-        new_this_week=new_this_week,
-        total_documents=total_documents,
-        total_storage=total_storage,
-        percent_used=min(percent_used, 100),
-        quota=quota,
-        today=datetime.utcnow()
-    )
+    data = facade.get_admin_dashboard_data()
+    return render_template("admin_dashboard.html", **data, today=datetime.utcnow())
 
 
 @app.route("/admin/users/<int:user_id>/status", methods=["POST"])
 @admin_required
 def update_user_status(user_id):
-    user = User.query.get_or_404(user_id)
-    new_status = request.form.get("status", "active")
-
-    if user.id == session.get("user_id") and new_status != "active":
-        flash("You cannot deactivate your own account.", "error")
-        return redirect(url_for("admin_dashboard"))
-
-    user.is_active_account = (new_status == "active")
-    db.session.commit()
-    flash(f"Updated {user.username}'s status.", "success")
+    try:
+        user = facade.set_user_status(session.get("user_id"), user_id, request.form.get("status", "active"))
+        flash(f"Updated {user.username}'s status.", "success")
+    except ValidationError as e:
+        flash_errors(e)
     return redirect(url_for("admin_dashboard"))
 
 
 @app.route("/admin/users/<int:user_id>/delete", methods=["POST"])
 @admin_required
 def delete_user(user_id):
-    user = User.query.get_or_404(user_id)
-
-    if user.id == session.get("user_id"):
-        flash("You cannot delete your own account.", "error")
-        return redirect(url_for("admin_dashboard"))
-
-    folder = os.path.join(app.config["UPLOAD_FOLDER"], str(user.id))
-    if os.path.isdir(folder):
-        shutil.rmtree(folder)
-
-    db.session.delete(user)
-    db.session.commit()
-    flash(f"Deleted user {user.username}.", "success")
+    try:
+        username = facade.delete_user(session.get("user_id"), user_id)
+        flash(f"Deleted user {username}.", "success")
+    except ValidationError as e:
+        flash_errors(e)
     return redirect(url_for("admin_dashboard"))
 
 
@@ -324,12 +266,10 @@ def create_admin():
     email = input("Admin email: ").strip().lower()
     password = getpass.getpass("Admin password: ")
 
-    if User.query.filter_by(username=username).first():
-        print("This username already exists.")
+    try:
+        facade.create_admin(username, email, password)
+    except ValidationError as e:
+        for message in e.messages:
+            print(message)
         return
-
-    admin = User(username=username, email=email, role="admin")
-    admin.set_password(password)
-    db.session.add(admin)
-    db.session.commit()
     print(f"Admin {username} created.")
