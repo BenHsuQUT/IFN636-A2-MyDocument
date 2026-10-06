@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 
 from project.models import db, User, Document, DocumentVersion, Category, new_uuid
 from project.utils import allowed_file
-
+from project.strategy import SearchContext, KeywordSearchStrategy
 
 # ---------------------------- exceptions --
 class ValidationError(Exception):
@@ -156,17 +156,27 @@ class MyDocumentFacade:
         return username
 
     # ---------------------------------------------------------- user dashboard --
-    def get_user_dashboard_data(self, user):
+    def get_user_dashboard_data(self, user, search_query=""):
         all_latest = user.latest_documents()
         self._sync_categories(user, all_latest)
 
+        query = Document.query.filter_by(user_id=user.id, is_latest=True)
+
+        query = (
+            SearchContext()
+            .add(KeywordSearchStrategy(), search_query)
+            .execute(query)
+        )
+
+        filtered_docs = query.order_by(Document.uploaded_at.desc()).all()
         categories = Category.query.filter_by(user_id=user.id).order_by(Category.name).all()
+        
         total_storage = user.total_storage_bytes()
         quota = self.config["USER_QUOTA_BYTES"]
         percent_used = round((total_storage / quota) * 100, 1) if quota else 0
 
         return {
-            "docs": all_latest,
+            "docs": filtered_docs,
             "all_docs": all_latest,
             "categories": categories,
             "total_documents": len(all_latest),
@@ -174,6 +184,7 @@ class MyDocumentFacade:
             "percent_used": min(percent_used, 100),
             "quota": quota,
             "recent_count": sum(1 for d in all_latest if d.is_recent()),
+            "search_query": search_query,
         }
 
     def _sync_categories(self, user, documents):

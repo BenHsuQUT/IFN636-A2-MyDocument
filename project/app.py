@@ -92,7 +92,13 @@ def index():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    data = facade.get_user_dashboard_data(get_current_user())
+    search_query = request.args.get("q", "").strip()
+
+    data = facade.get_user_dashboard_data(
+        get_current_user(),
+        search_query=search_query
+    )
+    
     return render_template("user_dashboard.html", **data, today=datetime.utcnow())
 
 # -----------------------category--------------------------------
