@@ -65,6 +65,10 @@ class VersionHistory:
     def get_history(self, document):
         return [v.to_memento() for v in document.history]
 
+    def get(self, document, version):
+        saved = DocumentVersion.query.filter_by(document_id=document.id, version=version).first()
+        return saved.to_memento() if saved else None
+
 
 # --------------------------------------------------- facade --
 class MyDocumentFacade:
@@ -274,6 +278,20 @@ class MyDocumentFacade:
         doc.stored_filename = stored_filename
         doc.filesize_bytes = filesize
         doc.uploaded_at = datetime.utcnow()
+        db.session.commit()
+        return doc
+
+    def restore_version(self, user, doc_id, version):
+        doc = self.get_document_for(user, doc_id)
+        if doc.user_id != user.id:
+            raise AccessDeniedError
+        memento = self.version_history.get(doc, version)
+        if memento is None:
+            raise ValidationError("That version does not exist.")
+
+        # keep the current version in the history, then restore the selected one
+        self.version_history.save(doc)
+        doc.restore_from_memento(memento)
         db.session.commit()
         return doc
 

@@ -194,6 +194,19 @@ def upload_new_version(doc_id):
     return redirect(url_for("document_details", doc_id=doc_id))
 
 
+@app.route("/documents/<int:doc_id>/versions/<int:version>/restore", methods=["POST"])
+@login_required
+def restore_version(doc_id, version):
+    try:
+        doc = facade.restore_version(get_current_user(), doc_id, version)
+        flash(f"Restored V.{version} as V.{doc.version} of \"{doc.title}\".", "success")
+    except ValidationError as e:
+        flash_errors(e)
+    except AccessDeniedError:
+        abort(403)
+    return redirect(url_for("document_details", doc_id=doc_id))
+
+
 @app.route("/documents/<int:doc_id>/update", methods=["POST"])
 @login_required
 def update_document(doc_id):
