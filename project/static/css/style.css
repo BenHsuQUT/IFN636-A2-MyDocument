@@ -588,8 +588,9 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; }
 
 .version-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px 8px;
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
   font-size: 12px;
@@ -597,13 +598,14 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; }
 .version-row:last-child { border-bottom: none; }
 .version-row .v-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .version-row .v-date { font-family: var(--font-mono); color: var(--muted); }
-.version-row .v-meta { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-row .v-meta { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
 .version-row-current { background: var(--primary-light); padding-left: 6px; padding-right: 6px; }
-.version-row-actions { display: flex; gap: 6px; }
+.version-row-actions { display: flex; gap: 6px; width: 100%; justify-content: flex-end; }
 .version-count { color: var(--muted); font-size: 12px; }
 .version-empty { color: var(--muted); font-size: 12px; margin: 10px 0 0; }
-.version-upload-form { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
-.version-upload-form .text-input { flex: 1; font-size: 12px; }
+.version-upload-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.version-upload-form .text-input { flex: 1 1 100%; font-size: 12px; }
+.version-upload-form .btn {margin-left: auto;}
 
 /* -------------------------------------------------------------- admin -- */
 .data-table { width: 100%; border-collapse: collapse; }
