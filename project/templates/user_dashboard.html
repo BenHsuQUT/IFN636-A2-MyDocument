@@ -67,6 +67,10 @@
   <form method="GET" action="{{ url_for('dashboard') }}">
     <div class="search-row">
       <input class="text-input" type="text" name="q" value="{{ search_query }}" placeholder="Search files, metadata...">
+      <input type="hidden" name="type" value="{{ selected_type }}">
+      <input type="hidden" name="category" value="{{ selected_category }}">
+      <input type="hidden" name="date" value="{{ selected_date }}">
+      <input type="hidden" name="size" value="{{ selected_size }}">
       <button type="submit" class="btn btn-primary">&#128269; Search</button>
     </div>
 
@@ -77,41 +81,81 @@
     <div class="filter-row">
       <!-- Type Filter -->
       <div class="dropdown">
-        <button type="button" class="btn dd-trigger dropdown-toggle" data-bs-toggle="dropdown">Type</button>
+        <button type="button" class="btn dd-trigger dropdown-toggle" data-bs-toggle="dropdown">
+          Type {% if selected_type and selected_type != 'All Types' %}: {{ selected_type }}{% endif %}
+        </button>
         <ul class="dropdown-menu">
-          <li><button type="button" class="dropdown-item active">All Types</button></li>
+          <li>
+            <a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('dashboard', q=search_query, type='All Types', category=selected_category, date=selected_date, size=selected_size) }}">
+              All Types {% if selected_type == 'All Types' or not selected_type %}<span class="text-success">✓</span>{% endif %}
+            </a>
+          </li>
           {% for label in type_options %}
-            <li><button type="button" class="dropdown-item">{{ label }}</button></li>
+            <li>
+              <a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('dashboard', q=search_query, type=label, category=selected_category, date=selected_date, size=selected_size) }}">
+                {{ label }} {% if selected_type == label %}<span class="text-success">✓</span>{% endif %}
+              </a>
+            </li>
           {% endfor %}
         </ul>
       </div>
       <!-- Category Filter -->
       <div class="dropdown">
-        <button type="button" class="btn dd-trigger dropdown-toggle" data-bs-toggle="dropdown">Category</button>
+        <button type="button" class="btn dd-trigger dropdown-toggle" data-bs-toggle="dropdown">
+          Category {% if selected_category and selected_category != 'All Categories' %}: {{ selected_category }}{% endif %}
+        </button>
         <ul class="dropdown-menu">
-          <li><button type="button" class="dropdown-item active">All Categories</button></li>
+          <li>
+            <a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('dashboard', q=search_query, type=selected_type, category='All Categories', date=selected_date, size=selected_size) }}">
+              All Categories {% if selected_category == 'All Categories' or not selected_category %}<span class="text-success">✓</span>{% endif %}
+            </a>
+          </li>
           {% for cat in categories %}
-            <li><button type="button" class="dropdown-item">{{ cat.name }}</button></li>
+            <li>
+              <a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('dashboard', q=search_query, type=selected_type, category=cat.name, date=selected_date, size=selected_size) }}">
+                {{ cat.name }} {% if selected_category == cat.name %}<span class="text-success">✓</span>{% endif %}
+              </a>
+            </li>
           {% endfor %}
         </ul>
       </div>
       <!-- Date Filter -->
       <div class="dropdown">
-        <button type="button" class="btn dd-trigger dropdown-toggle" data-bs-toggle="dropdown">Date</button>
+        <button type="button" class="btn dd-trigger dropdown-toggle" data-bs-toggle="dropdown">
+          Date {% if selected_date and selected_date != 'All Dates' %}: {{ selected_date }}{% endif %}
+        </button>
         <ul class="dropdown-menu">
-          <li><button type="button" class="dropdown-item active">All Dates</button></li>
+          <li>
+            <a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('dashboard', q=search_query, type=selected_type, category=selected_category, date='All Dates', size=selected_size) }}">
+              All Dates {% if selected_date == 'All Dates' or not selected_date %}<span class="text-success">✓</span>{% endif %}
+            </a>
+          </li>
           {% for label in date_options %}
-            <li><button type="button" class="dropdown-item">{{ label }}</button></li>
+            <li>
+              <a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('dashboard', q=search_query, type=selected_type, category=selected_category, date=label, size=selected_size) }}">
+                {{ label }} {% if selected_date == label %}<span class="text-success">✓</span>{% endif %}
+              </a>
+            </li>
           {% endfor %}
         </ul>
       </div>
       <!-- Size Filter -->
       <div class="dropdown">
-        <button type="button" class="btn dd-trigger dropdown-toggle" data-bs-toggle="dropdown">Size</button>
+        <button type="button" class="btn dd-trigger dropdown-toggle" data-bs-toggle="dropdown">
+          Size {% if selected_size and selected_size != 'All Sizes' %}: {{ selected_size }}{% endif %}
+        </button>
         <ul class="dropdown-menu">
-          <li><button type="button" class="dropdown-item active">All Sizes</button></li>
+          <li>
+            <a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('dashboard', q=search_query, type=selected_type, category=selected_category, date=selected_date, size='All Sizes') }}">
+              All Sizes {% if selected_size == 'All Sizes' or not selected_size %}<span class="text-success">✓</span>{% endif %}
+            </a>
+          </li>
           {% for label in size_options %}
-            <li><button type="button" class="dropdown-item">{{ label }}</button></li>
+            <li>
+              <a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url_for('dashboard', q=search_query, type=selected_type, category=selected_category, date=selected_date, size=label) }}">
+                {{ label }} {% if selected_size == label %}<span class="text-success">✓</span>{% endif %}
+              </a>
+            </li>
           {% endfor %}
         </ul>
       </div>

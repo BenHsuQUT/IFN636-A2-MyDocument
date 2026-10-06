@@ -93,10 +93,18 @@ def index():
 @login_required
 def dashboard():
     search_query = request.args.get("q", "").strip()
+    file_type = request.args.get("type", "").strip()
+    category_filter = request.args.get("category", "").strip()
+    date_filter = request.args.get("date", "").strip()
+    size_filter = request.args.get("size", "").strip()
 
     data = facade.get_user_dashboard_data(
         get_current_user(),
-        search_query=search_query
+        search_query=search_query,
+        category_filter=category_filter,
+        file_type=file_type,
+        date_filter=date_filter,
+        size_filter=size_filter
     )
     
     return render_template("user_dashboard.html", **data, today=datetime.utcnow())

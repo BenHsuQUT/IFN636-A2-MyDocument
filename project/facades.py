@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 
 from project.models import db, User, Document, DocumentVersion, Category, new_uuid
 from project.utils import allowed_file
-from project.strategy import SearchContext, KeywordSearchStrategy
+from project.strategy import SearchContext, KeywordSearchStrategy, TypeSearchStrategy, CategorySearchStrategy, DateSearchStrategy, SizeSearchStrategy
 
 # ---------------------------- exceptions --
 class ValidationError(Exception):
@@ -156,7 +156,7 @@ class MyDocumentFacade:
         return username
 
     # ---------------------------------------------------------- user dashboard --
-    def get_user_dashboard_data(self, user, search_query=""):
+    def get_user_dashboard_data(self, user, search_query="", category_filter="", file_type="", date_filter="", size_filter=""):
         all_latest = user.latest_documents()
         self._sync_categories(user, all_latest)
 
@@ -165,6 +165,10 @@ class MyDocumentFacade:
         query = (
             SearchContext()
             .add(KeywordSearchStrategy(), search_query)
+            .add(TypeSearchStrategy(), file_type)
+            .add(CategorySearchStrategy(), category_filter)
+            .add(DateSearchStrategy(), date_filter)
+            .add(SizeSearchStrategy(), size_filter)
             .execute(query)
         )
 
@@ -185,6 +189,10 @@ class MyDocumentFacade:
             "quota": quota,
             "recent_count": sum(1 for d in all_latest if d.is_recent()),
             "search_query": search_query,
+            "selected_type": file_type or "All Types",
+            "selected_category": category_filter or "All Categories",
+            "selected_date": date_filter or "All Dates",
+            "selected_size": size_filter or "All Sizes",
         }
 
     def _sync_categories(self, user, documents):
