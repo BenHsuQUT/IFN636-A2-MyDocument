@@ -105,11 +105,12 @@ class Document(db.Model):
         )
 
     def restore_from_memento(self, memento):
-        self.version = memento.version
+        # the restored file becomes a new version, so no existing version is overwritten
+        self.version += 1
         self.original_filename = memento.original_filename
         self.stored_filename = memento.stored_filename
         self.filesize_bytes = memento.filesize_bytes
-        self.uploaded_at = memento.uploaded_at
+        self.uploaded_at = datetime.utcnow()
 
     def total_size_bytes(self):
         return self.filesize_bytes + sum(v.filesize_bytes for v in self.history)

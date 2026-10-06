@@ -82,8 +82,10 @@
             <span class="v-meta">{{ v.original_filename }} &middot; uploaded by {{ v.uploaded_by }}</span>
           </div>
           <div class="version-row-actions">
-            {% if not loop.first %}
-            <button type="button" class="btn btn-outline btn-sm">&#8635; Restore</button>
+            {% if not loop.first and doc.user_id == current_user.id %}
+            <form method="post" action="{{ url_for('restore_version', doc_id=doc.id, version=v.version) }}" class="m-0" onsubmit="return confirm('Restore V.{{ v.version }}? It will become the current version, and V.{{ doc.version }} stays in the history.');">
+              <button type="submit" class="btn btn-outline btn-sm">&#8635; Restore</button>
+            </form>
             {% endif %}
             <button type="button" class="btn btn-primary btn-sm">&#8595; Download</button>
           </div>
