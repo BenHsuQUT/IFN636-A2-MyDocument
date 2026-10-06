@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from werkzeug.utils import secure_filename
 
-from project.models import db, User, Document, Category, new_uuid
+from project.models import db, User, Document, DocumentVersion, Category, new_uuid
 from project.utils import allowed_file
 
 
@@ -48,11 +48,30 @@ class FileStorage:
             shutil.rmtree(folder)
 
 
+# ----------------------------- subsystem: version history (memento caretaker) --
+class VersionHistory:
+    def save(self, document):
+        memento = document.create_memento()
+        db.session.add(DocumentVersion(
+            document_id=document.id,
+            version=memento.version,
+            original_filename=memento.original_filename,
+            stored_filename=memento.stored_filename,
+            filesize_bytes=memento.filesize_bytes,
+            uploaded_at=memento.uploaded_at,
+        ))
+        return memento
+
+    def get_history(self, document):
+        return [v.to_memento() for v in document.history]
+
+
 # --------------------------------------------------- facade --
 class MyDocumentFacade:
     def __init__(self, config):
         self.config = config
         self.storage = FileStorage(config["UPLOAD_FOLDER"])
+        self.version_history = VersionHistory()
 
     # -------------------------------------- auth --
     def get_user(self, user_id):
@@ -213,35 +232,18 @@ class MyDocumentFacade:
 
     # ---------------------------------------------------------- document --
     def upload_document(self, user, file, version_of="", title="", category="", notes=""):
-        if not file or file.filename == "":
-            raise ValidationError("Please choose a file to upload.")
-        if not allowed_file(file.filename, self.config["ALLOWED_EXTENSIONS"]):
-            raise ValidationError("Unsupported file format.")
+        if version_of:
+            return self.upload_new_version(user, version_of, file)
 
-        title = (title or "").strip()
+        self._validate_file(file)
+        title = (title or "").strip() or file.filename.rsplit(".", 1)[0]
         category = (category or "").strip() or "Uncategorized"
         notes = (notes or "").strip()
 
         stored_filename, filesize = self.storage.save(user.id, file)
 
-        parent = None
-        if version_of:
-            parent = Document.query.filter_by(id=version_of, user_id=user.id, is_latest=True).first()
-
-        if parent:
-            parent.is_latest = False
-            new_version = parent.version + 1
-            group_id = parent.group_id
-            title = parent.title
-            category = parent.category
-        else:
-            group_id = new_uuid()
-            new_version = 1
-            if not title:
-                title = file.filename.rsplit(".", 1)[0]
-
         doc = Document(
-            user_id=user.id, group_id=group_id, version=new_version, is_latest=True,
+            user_id=user.id, group_id=new_uuid(), version=1, is_latest=True,
             title=title, category=category, notes=notes,
             original_filename=secure_filename(file.filename),
             stored_filename=stored_filename, filesize_bytes=filesize,
@@ -249,6 +251,34 @@ class MyDocumentFacade:
         db.session.add(doc)
         db.session.commit()
         return doc
+
+    def _validate_file(self, file):
+        if not file or file.filename == "":
+            raise ValidationError("Please choose a file to upload.")
+        if not allowed_file(file.filename, self.config["ALLOWED_EXTENSIONS"]):
+            raise ValidationError("Unsupported file format.")
+
+    # ---------------------------------------------------------- version control --
+    def upload_new_version(self, user, doc_id, file):
+        doc = self.get_document_for(user, doc_id)
+        if doc.user_id != user.id:
+            raise AccessDeniedError
+        self._validate_file(file)
+
+        # keep the current version as a memento before it is replaced
+        self.version_history.save(doc)
+
+        stored_filename, filesize = self.storage.save(user.id, file)
+        doc.version += 1
+        doc.original_filename = secure_filename(file.filename)
+        doc.stored_filename = stored_filename
+        doc.filesize_bytes = filesize
+        doc.uploaded_at = datetime.utcnow()
+        db.session.commit()
+        return doc
+
+    def get_version_history(self, doc):
+        return self.version_history.get_history(doc)
 
     def get_document_for(self, user, doc_id):
         doc = Document.query.get_or_404(doc_id)
@@ -272,6 +302,8 @@ class MyDocumentFacade:
         doc = self.get_document_for(user, doc_id)
         owner_id = doc.user_id
         for d in Document.query.filter_by(group_id=doc.group_id).all():
+            for memento in self.version_history.get_history(d):
+                self.storage.delete(d.user_id, memento.stored_filename)
             self.storage.delete(d.user_id, d.stored_filename)
             db.session.delete(d)
         db.session.commit()

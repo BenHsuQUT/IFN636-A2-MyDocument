@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from project.memento import DocumentMemento
+
 db = SQLAlchemy()
 
 
@@ -85,6 +87,32 @@ class Document(db.Model):
 
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # previous versions saved by the caretaker, newest first
+    history = db.relationship(
+        "DocumentVersion", backref="document", lazy=True, cascade="all, delete-orphan",
+        order_by="DocumentVersion.version.desc()",
+    )
+
+    # ------------------------------------------- originator (memento pattern) --
+    def create_memento(self):
+        return DocumentMemento(
+            version=self.version,
+            original_filename=self.original_filename,
+            stored_filename=self.stored_filename,
+            filesize_bytes=self.filesize_bytes,
+            uploaded_at=self.uploaded_at,
+        )
+
+    def restore_from_memento(self, memento):
+        self.version = memento.version
+        self.original_filename = memento.original_filename
+        self.stored_filename = memento.stored_filename
+        self.filesize_bytes = memento.filesize_bytes
+        self.uploaded_at = memento.uploaded_at
+
+    def total_size_bytes(self):
+        return self.filesize_bytes + sum(v.filesize_bytes for v in self.history)
+
     def relative_path(self):
         return f"{self.user_id}/{self.stored_filename}"
 
@@ -113,12 +141,30 @@ class Document(db.Model):
     def is_previewable_pdf(self):
         pass
 
-    def versions(self):
-        return (
-            Document.query.filter_by(group_id=self.group_id)
-            .order_by(Document.version.desc())
-            .all()
-        )
-
     def is_recent(self, days=7):
         return self.uploaded_at and self.uploaded_at >= datetime.utcnow() - timedelta(days=days)
+
+
+class DocumentVersion(db.Model):
+    """Database storage for the mementos of a document (its previous versions)."""
+    __tablename__ = "document_versions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    document_id = db.Column(db.Integer, db.ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+
+    version = db.Column(db.Integer, nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    stored_filename = db.Column(db.String(255), nullable=False)
+    filesize_bytes = db.Column(db.Integer, nullable=False, default=0)
+    uploaded_at = db.Column(db.DateTime, nullable=False)
+
+    __table_args__ = (db.UniqueConstraint("document_id", "version", name="uq_document_version"),)
+
+    def to_memento(self):
+        return DocumentMemento(
+            version=self.version,
+            original_filename=self.original_filename,
+            stored_filename=self.stored_filename,
+            filesize_bytes=self.filesize_bytes,
+            uploaded_at=self.uploaded_at,
+        )
