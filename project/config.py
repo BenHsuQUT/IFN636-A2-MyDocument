@@ -17,7 +17,8 @@ class Config:
     MYSQL_PORT = os.environ.get("MYSQL_PORT")
     MYSQL_DB = os.environ.get("MYSQL_DB", "personal_document_manager")
 
-    SQLALCHEMY_DATABASE_URI = (
+    # DATABASE_URL lets the tests run on an in-memory SQLite database instead of MySQL
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or (
         f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}"
         f"@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
     )
