@@ -160,7 +160,25 @@ def document_details(doc_id):
         doc = facade.get_document_for(get_current_user(), doc_id)
     except AccessDeniedError:
         abort(403)
-    return render_template("document_details.html", doc=doc, history=facade.get_version_history(doc))
+        return render_template("document_details.html", doc=doc, versions=facade.get_all_versions(doc))
+
+
+@app.route("/api/documents/<int:doc_id>/versions")
+@login_required
+def api_version_history(doc_id):
+    try:
+        doc = facade.get_document_for(get_current_user(), doc_id)
+    except AccessDeniedError:
+        abort(403)
+    return jsonify({
+        "document_id": doc.id,
+        "title": doc.title,
+        "current_version": doc.version,
+        "versions": [
+            {**m.to_dict(), "is_current": m.version == doc.version}
+            for m in facade.get_all_versions(doc)
+        ],
+    })
 
 
 @app.route("/documents/<int:doc_id>/versions/upload", methods=["POST"])

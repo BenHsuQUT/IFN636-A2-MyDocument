@@ -46,7 +46,7 @@ class User(db.Model):
         return (self.username or "?")[0].upper()
 
     def total_storage_bytes(self):
-        return sum(d.filesize_bytes for d in self.documents)
+        return sum(d.total_size_bytes() for d in self.documents)
 
     def latest_documents(self):
         return (
@@ -101,6 +101,7 @@ class Document(db.Model):
             stored_filename=self.stored_filename,
             filesize_bytes=self.filesize_bytes,
             uploaded_at=self.uploaded_at,
+            uploaded_by=self.owner.username,
         )
 
     def restore_from_memento(self, memento):
@@ -167,4 +168,6 @@ class DocumentVersion(db.Model):
             stored_filename=self.stored_filename,
             filesize_bytes=self.filesize_bytes,
             uploaded_at=self.uploaded_at,
+            # only the owner can upload versions, so the owner is the uploader
+            uploaded_by=self.document.owner.username,
         )

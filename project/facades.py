@@ -280,6 +280,10 @@ class MyDocumentFacade:
     def get_version_history(self, doc):
         return self.version_history.get_history(doc)
 
+    def get_all_versions(self, doc):
+        # current version first, then the previous versions (newest first)
+        return [doc.create_memento()] + self.get_version_history(doc)
+
     def get_document_for(self, user, doc_id):
         doc = Document.query.get_or_404(doc_id)
         if doc.user_id != user.id and not user.is_admin:
