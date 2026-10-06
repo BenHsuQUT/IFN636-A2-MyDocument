@@ -597,6 +597,8 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; }
 .version-row:last-child { border-bottom: none; }
 .version-row .v-date { flex: 1; font-family: var(--font-mono); color: var(--muted); }
 .version-row-actions { display: flex; gap: 6px; }
+.version-upload-form { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.version-upload-form .text-input { flex: 1; font-size: 12px; }
 
 /* -------------------------------------------------------------- admin -- */
 .data-table { width: 100%; border-collapse: collapse; }

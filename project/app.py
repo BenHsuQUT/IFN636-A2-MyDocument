@@ -148,6 +148,8 @@ def upload_document():
         flash("Upload successful.", "success")
     except ValidationError as e:
         flash_errors(e)
+    except AccessDeniedError:
+        abort(403)
     return redirect(url_for("dashboard"))
 
 # -----------------------document_details-----------------------
@@ -158,7 +160,20 @@ def document_details(doc_id):
         doc = facade.get_document_for(get_current_user(), doc_id)
     except AccessDeniedError:
         abort(403)
-    return render_template("document_details.html", doc=doc, versions=doc.versions())
+    return render_template("document_details.html", doc=doc, history=facade.get_version_history(doc))
+
+
+@app.route("/documents/<int:doc_id>/versions/upload", methods=["POST"])
+@login_required
+def upload_new_version(doc_id):
+    try:
+        doc = facade.upload_new_version(get_current_user(), doc_id, request.files.get("file"))
+        flash(f"Uploaded V.{doc.version} of \"{doc.title}\".", "success")
+    except ValidationError as e:
+        flash_errors(e)
+    except AccessDeniedError:
+        abort(403)
+    return redirect(url_for("document_details", doc_id=doc_id))
 
 
 @app.route("/documents/<int:doc_id>/update", methods=["POST"])

@@ -62,14 +62,30 @@
       <!-------------------------------- version history ------------------------------------------->
       <div class="panel" style="margin-top:16px;">
         <div class="panel-header"><span class="panel-title">Version History</span></div>
-        {% for v in versions %}
+
+        {% if doc.user_id == current_user.id %}
+        <form method="post" action="{{ url_for('upload_new_version', doc_id=doc.id) }}" enctype="multipart/form-data" class="version-upload-form">
+          <input class="text-input" type="file" name="file" accept=".pdf,.docx,.txt" required>
+          <button type="submit" class="btn btn-primary btn-sm">&#8593; Upload New Version</button>
+        </form>
+        {% endif %}
+
+        <!-- current version -->
+        <div class="version-row">
+          <span class="badge-version">V.{{ doc.version }}</span>
+          <span class="v-date">{{ doc.uploaded_at|dateformat }} &nbsp; {{ doc.uploaded_at|timeformat }} &nbsp; {{ doc.filesize_bytes|d_size }} &nbsp; (Current)</span>
+          <div class="version-row-actions">
+            <button type="button" class="btn btn-primary btn-sm">&#8595; Download</button>
+          </div>
+        </div>
+
+        <!-- previous versions (mementos) -->
+        {% for v in history %}        
         <div class="version-row">
           <span class="badge-version">V.{{ v.version }}</span>
-          <span class="v-date">{{ v.uploaded_at|dateformat }} &nbsp; {{ v.uploaded_at|timeformat }} &nbsp; {{ v.d_size() }}</span>
+          <span class="v-date">{{ v.uploaded_at|dateformat }} &nbsp; {{ v.uploaded_at|timeformat }} &nbsp; {{ v.filesize_bytes|d_size }}</span>
           <div class="version-row-actions">
-            {% if not v.is_latest %}
             <button type="button" class="btn btn-outline btn-sm">&#8635; Restore</button>
-            {% endif %}
             <button type="button" class="btn btn-primary btn-sm">&#8595; Download</button>
           </div>
         </div>
