@@ -64,9 +64,9 @@
     </div>
   </div>
   <!---------------------------- search & filter --------------------------------------------------------->
-  <form>
+  <form method="GET" action="{{ url_for('dashboard') }}">
     <div class="search-row">
-      <input class="text-input" type="text" placeholder="Search files, metadata...">
+      <input class="text-input" type="text" name="q" value="{{ search_query }}" placeholder="Search files, metadata...">
       <button type="submit" class="btn btn-primary">&#128269; Search</button>
     </div>
 
