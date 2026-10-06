@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Flask, render_template, request, redirect, url_for,session, flash, send_from_directory, abort
+from flask import Flask, render_template, request, redirect, url_for,session, flash, send_from_directory, abort, jsonify
 
 from project.config import Config
 from project.models import db
@@ -160,7 +160,7 @@ def document_details(doc_id):
         doc = facade.get_document_for(get_current_user(), doc_id)
     except AccessDeniedError:
         abort(403)
-        return render_template("document_details.html", doc=doc, versions=facade.get_all_versions(doc))
+    return render_template("document_details.html", doc=doc, versions=facade.get_all_versions(doc))
 
 
 @app.route("/api/documents/<int:doc_id>/versions")
