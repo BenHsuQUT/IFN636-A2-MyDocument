@@ -310,6 +310,18 @@ class MyDocumentFacade:
         db.session.commit()
         return doc
 
+    def get_version_download_info(self, user, doc_id, version):
+        doc = self.get_document_for(user, doc_id)
+        # the current version lives on the document, older ones are mementos
+        memento = doc.create_memento() if version == doc.version else self.version_history.get(doc, version)
+        if memento is None:
+            raise ValidationError("That version does not exist.")
+        download_name = memento.original_filename
+        if "." in download_name:
+            name, ext = download_name.rsplit(".", 1)
+            download_name = f"{name}_V{memento.version}.{ext}"
+        return self.storage.user_folder(doc.user_id), memento.stored_filename, download_name
+
     def get_version_history(self, doc):
         return self.version_history.get_history(doc)
 
