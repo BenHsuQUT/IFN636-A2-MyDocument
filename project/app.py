@@ -207,6 +207,18 @@ def upload_new_version(doc_id):
     return redirect(url_for("document_details", doc_id=doc_id))
 
 
+@app.route("/documents/<int:doc_id>/versions/<int:version>/download")
+@login_required
+def download_version(doc_id, version):
+    try:
+        directory, stored_filename, download_name = facade.get_version_download_info(get_current_user(), doc_id, version)
+    except ValidationError:
+        abort(404)
+    except AccessDeniedError:
+        abort(403)
+    return send_from_directory(directory, stored_filename, as_attachment=True, download_name=download_name)
+
+
 @app.route("/documents/<int:doc_id>/versions/<int:version>/restore", methods=["POST"])
 @login_required
 def restore_version(doc_id, version):

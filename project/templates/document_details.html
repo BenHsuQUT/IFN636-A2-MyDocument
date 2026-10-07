@@ -87,7 +87,9 @@
               <button type="submit" class="btn btn-outline btn-sm">&#8635; Restore</button>
             </form>
             {% endif %}
-            <button type="button" class="btn btn-primary btn-sm">&#8595; Download</button>
+            <form method="get" action="{{ url_for('download_version', doc_id=doc.id, version=v.version) }}" class="m-0">
+              <button type="submit" class="btn btn-primary btn-sm">&#8595; Download</button>
+            </form>
           </div>
         </div>
         {% endfor %}
