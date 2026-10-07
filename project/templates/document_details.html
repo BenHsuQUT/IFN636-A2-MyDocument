@@ -11,7 +11,7 @@
 
   <div class="detail-grid">
     <div>
-      <p class="preview-heading">Preview: {{ doc.title }} | V.{{ doc.version }} {{ '(Latest)' if doc.is_latest else '(Older version)' }}</p>
+      <p class="preview-heading">Preview: {{ doc.title }} | V.{{ doc.version }}</p>
       <div class="preview-pane">
         {% if doc.is_previewable_image() %}
           <img src="{{ url_for('static', filename='uploads/' + doc.relative_path()) }}" alt="{{ doc.title }}">
@@ -32,7 +32,7 @@
             <span class="inline-editable" id="titleDisplay" onclick="startInlineEdit('title')" title="Click to edit">{{ doc.title }}</span>
             <input class="inline-edit-input" type="text" name="title" id="titleInput" value="{{ doc.title }}" onblur="handleInlineBlur(this)" onkeydown="handleInlineKeydown(event, this)">
           </form>
-          | V.{{ doc.version }} {{ '(Latest)' if doc.is_latest }}
+          | V.{{ doc.version }}
         </div>
         <div class="info-card-desc">
           <form method="post" action="{{ url_for('update_document', doc_id=doc.id) }}" class="inline-edit-form" id="notesEditForm">

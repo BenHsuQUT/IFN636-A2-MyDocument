@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime, timedelta
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -6,10 +5,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from project.memento import DocumentMemento
 
 db = SQLAlchemy()
-
-
-def new_uuid():
-    return str(uuid.uuid4())
 
 
 class User(db.Model):
@@ -50,7 +45,7 @@ class User(db.Model):
 
     def latest_documents(self):
         return (
-            Document.query.filter_by(user_id=self.id, is_latest=True)
+            Document.query.filter_by(user_id=self.id)
             .order_by(Document.uploaded_at.desc())
             .all()
         )
@@ -73,9 +68,7 @@ class Document(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
-    group_id = db.Column(db.String(36), nullable=False, default=new_uuid)
     version = db.Column(db.Integer, nullable=False, default=1)
-    is_latest = db.Column(db.Boolean, nullable=False, default=True)
 
     title = db.Column(db.String(150), nullable=False)
     category = db.Column(db.String(80), nullable=True, default="Uncategorized")
