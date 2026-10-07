@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 from project.models import db, User, Document, DocumentVersion, Category, new_uuid
 from project.utils import allowed_file
 from project.strategy import SearchContext, KeywordSearchStrategy, TypeSearchStrategy, CategorySearchStrategy, DateSearchStrategy, SizeSearchStrategy
+from project.user_factory import RegularUserCreator, AdminUserCreator
 
 # ---------------------------- exceptions --
 class ValidationError(Exception):
@@ -90,16 +91,15 @@ class MyDocumentFacade:
         if errors:
             raise ValidationError(*errors)
 
-        return self._create_user(username, email, password, role="user")
+        return self._create_user(username, email, password, RegularUserCreator())
 
     def create_admin(self, username, email, password):
         if User.query.filter_by(username=username).first():
             raise ValidationError("This username already exists.")
-        return self._create_user(username, email, password, role="admin")
+        return self._create_user(username, email, password, AdminUserCreator())
 
-    def _create_user(self, username, email, password, role):
-        user = User(username=username, email=email, role=role)
-        user.set_password(password)
+    def _create_user(self, username, email, password, creator):
+        user = creator.register_user(username, email, password)
         db.session.add(user)
         db.session.commit()
         return user
