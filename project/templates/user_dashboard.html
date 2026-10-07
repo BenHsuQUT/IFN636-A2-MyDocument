@@ -257,15 +257,6 @@
               </div>
             </div>
 
-            <div class="form-group" style="margin-top:14px;">
-              <label class="form-label">New version of (optional)</label>
-              <select class="select-input" name="version_of">
-                <option value="">— New document —</option>
-                {% for d in all_docs %}
-                  <option value="{{ d.id }}">{{ d.title }} (currently V.{{ d.version }})</option>
-                {% endfor %}
-              </select>
-            </div>
           </div>
 
           <div class="modal-col-right">

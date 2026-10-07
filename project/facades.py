@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from werkzeug.utils import secure_filename
 
-from project.models import db, User, Document, DocumentVersion, Category, new_uuid
+from project.models import db, User, Document, DocumentVersion, Category
 from project.utils import allowed_file
 from project.strategy import SearchContext, KeywordSearchStrategy, TypeSearchStrategy, CategorySearchStrategy, DateSearchStrategy, SizeSearchStrategy
 from project.user_factory import RegularUserCreator, AdminUserCreator
@@ -135,7 +135,7 @@ class MyDocumentFacade:
             "active_users": active_users,
             "inactive_users": total_users - active_users,
             "new_this_week": sum(1 for u in all_users if u.created_at and u.created_at >= week_ago),
-            "total_documents": Document.query.filter_by(is_latest=True).count(),
+            "total_documents": Document.query.count(),
             "total_storage": total_storage,
             "percent_used": min(percent_used, 100),
             "quota": quota,
@@ -164,7 +164,7 @@ class MyDocumentFacade:
         all_latest = user.latest_documents()
         self._sync_categories(user, all_latest)
 
-        query = Document.query.filter_by(user_id=user.id, is_latest=True)
+        query = Document.query.filter_by(user_id=user.id)
 
         query = (
             SearchContext()
@@ -185,7 +185,6 @@ class MyDocumentFacade:
 
         return {
             "docs": filtered_docs,
-            "all_docs": all_latest,
             "categories": categories,
             "total_documents": len(all_latest),
             "total_storage": total_storage,
@@ -254,10 +253,7 @@ class MyDocumentFacade:
             raise ValidationError(f'You already have a category named "{name}".')
 
     # ---------------------------------------------------------- document --
-    def upload_document(self, user, file, version_of="", title="", category="", notes=""):
-        if version_of:
-            return self.upload_new_version(user, version_of, file)
-
+    def upload_document(self, user, file, title="", category="", notes=""):
         self._validate_file(file)
         title = (title or "").strip() or file.filename.rsplit(".", 1)[0]
         category = (category or "").strip() or "Uncategorized"
@@ -266,7 +262,7 @@ class MyDocumentFacade:
         stored_filename, filesize = self.storage.save(user.id, file)
 
         doc = Document(
-            user_id=user.id, group_id=new_uuid(), version=1, is_latest=True,
+            user_id=user.id, version=1,
             title=title, category=category, notes=notes,
             original_filename=secure_filename(file.filename),
             stored_filename=stored_filename, filesize_bytes=filesize,
@@ -342,10 +338,9 @@ class MyDocumentFacade:
     def delete_document(self, user, doc_id):
         doc = self.get_document_for(user, doc_id)
         owner_id = doc.user_id
-        for d in Document.query.filter_by(group_id=doc.group_id).all():
-            for memento in self.version_history.get_history(d):
-                self.storage.delete(d.user_id, memento.stored_filename)
-            self.storage.delete(d.user_id, d.stored_filename)
-            db.session.delete(d)
+        for memento in self.version_history.get_history(doc):
+            self.storage.delete(owner_id, memento.stored_filename)
+        self.storage.delete(owner_id, doc.stored_filename)
+        db.session.delete(doc)
         db.session.commit()
         return owner_id

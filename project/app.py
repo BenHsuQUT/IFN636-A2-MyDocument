@@ -154,7 +154,6 @@ def upload_document():
         facade.upload_document(
             get_current_user(),
             request.files.get("file"),
-            version_of=request.form.get("version_of", ""),
             title=request.form.get("title", ""),
             category=request.form.get("category", ""),
             notes=request.form.get("notes", ""),
