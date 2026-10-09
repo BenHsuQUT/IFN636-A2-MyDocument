@@ -89,7 +89,7 @@
           <td><span class="role-pill">{{ u.role }}</span></td>
           <td>
             <form method="post" action="{{ url_for('update_user_status', user_id=u.id) }}" style="display:inline;">
-              <select name="status" class="status-pill {{ 'status-active' if u.is_active_account else 'status-inactive' }}" onchange="this.form.submit()" {{ 'disabled' if u.id == current_user.id }}>
+              <select name="status" class="status-pill {{ 'status-active' if u.is_active_account else 'status-inactive' }}" onchange="this.form.submit()" {{ 'disabled' if u.is_admin }}>
                 <option value="active" {{ 'selected' if u.is_active_account }}>Active</option>
                 <option value="inactive" {{ 'selected' if not u.is_active_account }}>Inactive</option>
               </select>
@@ -98,7 +98,7 @@
           <td class="file-meta-muted">{{ u.total_storage_bytes()|d_size }} / {{ quota|d_size }}</td>
           <td class="file-meta-muted">{{ u.last_login_at|dateformat('%b %d') if u.last_login_at else '—' }}{% if u.last_login_at %}, {{ u.last_login_at|timeformat }}{% endif %}</td>
           <td>
-            {% if u.id != current_user.id %}
+            {% if not u.is_admin %}
             <form method="post" action="{{ url_for('delete_user', user_id=u.id) }}" class="m-0" onsubmit="return confirm('Delete user &quot;{{ u.username }}&quot;? This removes all of their documents too.');">
               <button type="submit" class="btn btn-warning btn-sm">&#128465; Delete</button>
             </form>
