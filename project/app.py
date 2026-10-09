@@ -304,13 +304,13 @@ def internal_error(e):
     ), 500
 
 # --------------------------------------------------------------- CLI/setup --
-@app.cli.command("init-db") #flask --app pdm_project.app init-db
+@app.cli.command("init-db") #flask --app project.app init-db
 def init_db():
     db.create_all()
     print("Database tables created.")
 
 
-@app.cli.command("create-admin") #flask --app pdm_project.app create-admin
+@app.cli.command("create-admin") #flask --app project.app create-admin
 def create_admin():
     
     import getpass

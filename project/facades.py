@@ -145,6 +145,8 @@ class MyDocumentFacade:
         user = User.query.get_or_404(user_id)
         if user.id == admin_id and status != "active":
             raise ValidationError("You cannot deactivate your own account.")
+        if user.is_admin:
+            raise ValidationError("You cannot change the status of another admin account.")
         user.is_active_account = (status == "active")
         db.session.commit()
         return user
@@ -153,6 +155,8 @@ class MyDocumentFacade:
         user = User.query.get_or_404(user_id)
         if user.id == admin_id:
             raise ValidationError("You cannot delete your own account.")
+        if user.is_admin:
+            raise ValidationError("You cannot delete another admin account.")
         username = user.username
         self.storage.delete_user_folder(user.id)
         db.session.delete(user)
