@@ -17,8 +17,7 @@ class KeywordSearchStrategy(SearchStrategy):
             db.or_(
                 Document.title.ilike(keyword),
                 Document.notes.ilike(keyword),
-                Document.category.ilike(keyword),
-                Document.original_filename.ilike(keyword)
+                Document.category.ilike(keyword)
             )
         )
 
