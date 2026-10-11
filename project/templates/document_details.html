@@ -13,12 +13,25 @@
     <div>
       <p class="preview-heading">Preview: {{ doc.title }} | V.{{ doc.version }}</p>
       <div class="preview-pane">
-        {% if doc.is_previewable_image() %}
-          <img src="{{ url_for('static', filename='uploads/' + doc.relative_path()) }}" alt="{{ doc.title }}">
-        {% elif doc.is_previewable_pdf() %}
-          <iframe src="{{ url_for('static', filename='uploads/' + doc.relative_path()) }}"></iframe>
+        {% if preview_error %}
+          <p>{{ preview_error }}</p>
+        {% elif preview and preview.type == "pdf" %}
+          <iframe
+            src="{{ url_for('preview_document_content', doc_id=doc.id) }}"
+            title="Preview of {{ doc.title }}">
+          </iframe>
+        {% elif preview and preview.type in ["text", "docx"] %}
+          <div class="document-text-preview">
+            {% if preview.type == "docx" %}
+              <p class="preview-note">
+                Text preview only. Original formatting and images
+                are not shown.
+              </p>
+            {% endif %}
+            <pre>{{ preview.content }}</pre>
+          </div>
         {% else %}
-          <span>No Preview</span>
+          <span>No preview available</span>
         {% endif %}
       </div>
     </div>
