@@ -266,19 +266,6 @@ def delete_document(doc_id):
         return redirect(url_for("admin_dashboard"))
     return redirect(url_for("dashboard"))
 
-@app.route("/documents/<int:doc_id>/preview")
-@login_required
-def preview_document(doc_id):
-    try:
-        doc, preview = facade.preview_document(get_current_user(), doc_id)
-    except AccessDeniedError:
-        abort(403)
-    except ValidationError as error:
-        flash_errors(error)
-        return redirect(url_for("document_details", doc_id=doc_id))
-
-    return render_template("document_preview.html", doc=doc, preview=preview)
-
 @app.route("/documents/<int:doc_id>/preview/content")
 @login_required
 def preview_document_content(doc_id):
