@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 
 from flask import Flask, render_template, request, redirect, url_for,session, flash, send_from_directory, abort
@@ -173,7 +174,16 @@ def document_details(doc_id):
         doc = facade.get_document_for(get_current_user(), doc_id)
     except AccessDeniedError:
         abort(403)
-    return render_template("document_details.html", doc=doc, versions=facade.get_all_versions(doc))
+
+    preview = None
+    preview_error = None
+
+    try: 
+        doc, preview = facade.preview_document(get_current_user(), doc_id)
+    except ValidationError as error:
+        preview_error = str(error)
+
+    return render_template("document_details.html", doc=doc, versions=facade.get_all_versions(doc), preview=preview, preview_error=preview_error)
 
 
 @app.route("/documents/<int:doc_id>/versions/upload", methods=["POST"])
@@ -255,6 +265,44 @@ def delete_document(doc_id):
     if user.is_admin and owner_id != user.id:
         return redirect(url_for("admin_dashboard"))
     return redirect(url_for("dashboard"))
+
+@app.route("/documents/<int:doc_id>/preview")
+@login_required
+def preview_document(doc_id):
+    try:
+        doc, preview = facade.preview_document(get_current_user(), doc_id)
+    except AccessDeniedError:
+        abort(403)
+    except ValidationError as error:
+        flash_errors(error)
+        return redirect(url_for("document_details", doc_id=doc_id))
+
+    return render_template("document_preview.html", doc=doc, preview=preview)
+
+@app.route("/documents/<int:doc_id>/preview/content")
+@login_required
+def preview_document_content(doc_id):
+    user = get_current_user()
+
+    try:
+        doc = facade.get_document_for(user, doc_id)
+        if doc.extension() != "pdf":
+            abort(404)
+        directory, stored_filename, download_name = (facade.get_download_info(user, doc_id))
+    except AccessDeniedError:
+        abort(403)
+
+    response = send_from_directory(
+        os.path.abspath(directory),
+        stored_filename,
+        mimetype="application/pdf",
+        as_attachment=False,
+        download_name=download_name,
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+
+    return response
 
 # ------------------------------------------------------------ admin pages --
 @app.route("/admin")

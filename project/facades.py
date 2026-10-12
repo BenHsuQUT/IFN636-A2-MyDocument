@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 from project.models import db, User, Document, DocumentVersion, Category
 from project.utils import allowed_file
 from project.strategy import SearchContext, KeywordSearchStrategy, TypeSearchStrategy, CategorySearchStrategy, DateSearchStrategy, SizeSearchStrategy
-from project.user_factory import RegularUserCreator, AdminUserCreator
+from project.preview_template import PdfPreview, TextPreview, DocxPreview, PreviewError
 
 # ---------------------------- exceptions --
 class ValidationError(Exception):
@@ -95,15 +95,16 @@ class MyDocumentFacade:
         if errors:
             raise ValidationError(*errors)
 
-        return self._create_user(username, email, password, RegularUserCreator())
+        return self._create_user(username, email, password, role="user")
 
     def create_admin(self, username, email, password):
         if User.query.filter_by(username=username).first():
             raise ValidationError("This username already exists.")
-        return self._create_user(username, email, password, AdminUserCreator())
+        return self._create_user(username, email, password, role="admin")
 
-    def _create_user(self, username, email, password, creator):
-        user = creator.register_user(username, email, password)
+    def _create_user(self, username, email, password, role):
+        user = User(username=username, email=email, role=role)
+        user.set_password(password)
         db.session.add(user)
         db.session.commit()
         return user
@@ -280,6 +281,30 @@ class MyDocumentFacade:
             raise ValidationError("Please choose a file to upload.")
         if not allowed_file(file.filename, self.config["ALLOWED_EXTENSIONS"]):
             raise ValidationError("Unsupported file format.")
+
+    # ---------------------------------------------------------- preview document --
+    def preview_document(self, user, doc_id):
+        doc = self.get_document_for(user, doc_id)
+        preview_classes = {
+            "pdf": PdfPreview,
+            "txt": TextPreview,
+            "docx": DocxPreview,
+        }
+        preview_class = preview_classes.get(doc.extension())
+        if preview_class is None:
+            raise ValidationError("Preview is only available for PDF, TXT and DOCX files.")
+        
+        file_path = os.path.abspath(
+            os.path.join(self.storage.user_folder(doc.user_id), doc.stored_filename)
+        )
+        previewer = preview_class()
+
+        try:
+            preview = previewer.generate(file_path)
+        except PreviewError as error:
+            raise ValidationError(str(error)) from error
+
+        return doc, preview
 
     # ---------------------------------------------------------- version control --
     def upload_new_version(self, user, doc_id, file):
