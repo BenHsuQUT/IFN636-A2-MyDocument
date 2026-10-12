@@ -9,6 +9,7 @@ from project.models import db, User, Document, DocumentVersion, Category
 from project.utils import allowed_file
 from project.strategy import SearchContext, KeywordSearchStrategy, TypeSearchStrategy, CategorySearchStrategy, DateSearchStrategy, SizeSearchStrategy
 from project.preview_template import PdfPreview, TextPreview, DocxPreview, PreviewError
+from project.memento import VersionHistory
 
 # ---------------------------- exceptions --
 class ValidationError(Exception):
@@ -49,34 +50,12 @@ class FileStorage:
             shutil.rmtree(folder)
 
 
-# ----------------------------- subsystem: version history (memento caretaker) --
-class VersionHistory:
-    def save(self, document):
-        memento = document.create_memento()
-        db.session.add(DocumentVersion(
-            document_id=document.id,
-            version=memento.version,
-            original_filename=memento.original_filename,
-            stored_filename=memento.stored_filename,
-            filesize_bytes=memento.filesize_bytes,
-            uploaded_at=memento.uploaded_at,
-        ))
-        return memento
-
-    def get_history(self, document):
-        return [v.to_memento() for v in document.history]
-
-    def get(self, document, version):
-        saved = DocumentVersion.query.filter_by(document_id=document.id, version=version).first()
-        return saved.to_memento() if saved else None
-
-
 # --------------------------------------------------- facade --
 class MyDocumentFacade:
     def __init__(self, config):
         self.config = config
         self.storage = FileStorage(config["UPLOAD_FOLDER"])
-        self.version_history = VersionHistory()
+        self.version_history = VersionHistory(db, DocumentVersion)
 
     # -------------------------------------- auth --
     def get_user(self, user_id):
@@ -313,7 +292,6 @@ class MyDocumentFacade:
             raise AccessDeniedError
         self._validate_file(file)
 
-        # keep the current version as a memento before it is replaced
         self.version_history.save(doc)
 
         stored_filename, filesize = self.storage.save(user.id, file)
@@ -341,7 +319,6 @@ class MyDocumentFacade:
 
     def get_version_download_info(self, user, doc_id, version):
         doc = self.get_document_for(user, doc_id)
-        # the current version lives on the document, older ones are mementos
         memento = doc.create_memento() if version == doc.version else self.version_history.get(doc, version)
         if memento is None:
             raise ValidationError("That version does not exist.")
