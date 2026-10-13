@@ -1,0 +1,35 @@
+name: Backend CI  # Name of the CI workflow
+
+on:  # Event that triggers the workflow
+  push:
+    branches:
+      - main  # Run only when code is pushed to the main branch
+
+jobs:
+  test:  # Job name
+    name: Run Tests  # Display name for the job
+    runs-on: self-hosted  # Run on our own EC2 machine (self-hosted runner)
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4  # Copy the repository code to the runner
+        with:
+          clean: false  # Keep uploaded files in project/static/uploads between deployments
+
+      - name: Install Python Dependencies
+        run: |
+          python3 -m venv ~/mydoc-venv
+          ~/mydoc-venv/bin/pip install -r requirements.txt
+
+      - name: Create .env File
+        run: echo "${{ secrets.PROD }}" > .env  # Write production secrets to .env
+
+      - name: Run Tests
+        run: ~/mydoc-venv/bin/python -m pytest -v  # Uses SQLite in memory, not the real MySQL
+
+      - name: Restart App with pm2
+        run: |
+          export NVM_DIR="$HOME/.nvm"
+          . "$NVM_DIR/nvm.sh"
+          pm2 restart mydocument || pm2 start run.py --name mydocument --interpreter ~/mydoc-venv/bin/python
+          pm2 save
