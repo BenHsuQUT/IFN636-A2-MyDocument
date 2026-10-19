@@ -1,4 +1,4 @@
-﻿# IFN636-A1-MyDocument (PersonalDocumentManager)-Ben-Hsu
+﻿# IFN636-A2-MyDocument (PersonalDocumentManager)-Ben-Hsu/ Autumn Mai/ Hsin-Ting Tu/ Sophie Jeng
 
 A Flask + Jinja2 + MySQL project: a personal document manager UI, using HTML/ CSS and Bootstrap. This build is a scoped-down demo — see **Known Limitations** for exactly which features are real and non-functional.
 
