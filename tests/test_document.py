@@ -49,6 +49,62 @@ class TestUploadDocument:
 
         assert response.status_code == 500
 
+    def test_should_save_uploaded_file_and_metadata(self, client, user):
+        content = b"hello world"
+
+        response = client.post(
+            "/upload",
+            data={
+                "file": (io.BytesIO(content), "notes.txt"),
+                "title": "My Notes",
+                "category": "Work",
+                "notes": "Test document",
+            },
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/dashboard")
+
+        doc = Document.query.filter_by(user_id=user.id).one()
+
+        assert doc.title == "My Notes"
+        assert doc.category == "Work"
+        assert doc.notes == "Test document"
+        assert doc.original_filename == "notes.txt"
+        assert doc.stored_filename
+        assert doc.filesize_bytes == len(content)
+        assert doc.version == 1
+
+        file_path = os.path.join(
+            facade.storage.upload_folder,
+            str(user.id),
+            doc.stored_filename,
+        )
+
+        assert os.path.isfile(file_path)
+
+        with open(file_path, "rb") as saved_file:
+            assert saved_file.read() == content
+
+    def test_should_reject_upload_without_file(self, client):
+        count_before = Document.query.count()
+
+        response = client.post(
+            "/upload",
+            data={"title": "Missing file"},
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/dashboard")
+        assert Document.query.count() == count_before
+
+        with client.session_transaction() as session:
+            assert any(
+                category == "error"
+                for category, message in session.get("_flashes", [])
+            )
+
 
 # ---------------------------------------------------------------- view (read) --
 class TestViewDocument:
@@ -134,3 +190,54 @@ class TestDeleteDocument:
             response = client.post(f"/documents/{document.id}/delete")
 
         assert response.status_code == 500
+
+    def test_should_reject_deleting_another_users_document(
+        self, client, other_document
+    ):
+        doc_id = other_document.id
+        file_path = os.path.join(
+            facade.storage.upload_folder,
+            str(other_document.user_id),
+            other_document.stored_filename,
+        )
+
+        assert os.path.isfile(file_path)
+
+        response = client.post(f"/documents/{doc_id}/delete")
+
+        assert response.status_code == 403
+        assert db.session.get(Document, doc_id) is not None
+        assert os.path.isfile(file_path)
+
+# ---------------------------------------------------------------- download --
+
+class TestDownloadDocument:
+
+    def test_should_download_own_document(self, client, document):
+        response = client.get(
+            f"/documents/{document.id}/download"
+        )
+
+        assert response.status_code == 200
+        assert response.data == b"hello world"
+
+        disposition = response.headers["Content-Disposition"]
+        assert "attachment" in disposition
+        assert document.original_filename in disposition
+
+        response.close()
+
+    def test_should_reject_another_users_document(
+        self, client, other_document
+    ):
+        response = client.get(
+            f"/documents/{other_document.id}/download"
+        )
+
+        assert response.status_code == 403
+        assert b"hello world" not in response.data
+
+    def test_should_return_404_for_missing_document(self, client):
+        response = client.get("/documents/9999/download")
+
+        assert response.status_code == 404

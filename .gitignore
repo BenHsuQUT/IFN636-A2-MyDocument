@@ -4,3 +4,6 @@ venv/
 .vscode
 .postman
 postman/
+__pycache__/
+*.py[cod]
+.pytest_cache/
